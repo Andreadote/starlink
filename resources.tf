@@ -1,0 +1,61 @@
+
+
+#s3
+resource "aws_s3_bucket" "backend" {
+  bucket = "bootcamp32-${lower(var.env)}-${random_integer.backend.result}"
+  tags = {
+    Name        = "My backend"
+    Environment = "Dev"
+  }
+}
+
+
+resource "aws_s3_bucket_public_access_block" "tesla" {
+  bucket                  = aws_s3_bucket.backend.id
+  block_public_acls       = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+  ignore_public_acls      = true
+}
+#kms
+resource "aws_kms_key" "my_key" {
+  description             = "This key is used to encrypt bucket objects"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
+  bucket = aws_s3_bucket.backend.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.my_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+
+
+#Random
+resource "random_integer" "backend_s3" {
+  min = 1
+  max = 100
+  keepers = {
+    Environment = var.env
+  }
+}
+
+resource "aws_s3_bucket_versioning" "versioning_backend" {
+  bucket = aws_s3_bucket.backend.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_logging" "s3_log" {
+  bucket = aws_s3_bucket.backend.id
+
+  target_bucket = aws_s3_bucket.backend.id
+  target_prefix = "log/"
+}
